@@ -1,7 +1,6 @@
 from agent.state import AgentState
 from agent.loop import Agent
 
-from llm.gemini import GeminiFlash
 from llm.llama import LlamaGroq
 
 from tools.read_file import ReadFile
@@ -13,7 +12,7 @@ from tools.git_ops import GitCommit
 def main():
     state = AgentState()
 
-    reader_llm = GeminiFlash()   # planning / analysis
+    reader_llm = LlamaGroq()   # planning / analysis
     coder_llm = LlamaGroq()      # code generation
 
     tools = {

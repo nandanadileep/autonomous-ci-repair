@@ -45,13 +45,57 @@ Attempts:
 Observations so far:
 {state.observations}
 
-Decide the single best next action.
+You MUST choose exactly ONE action.
 
-Respond in this EXACT format:
+Allowed actions (JSON only):
 
-THOUGHT: <your reasoning>
+1. Read a file:
+{{
+  "type": "tool",
+  "name": "read_file",
+  "args": {{"path": "<file_path>"}}
+}}
+
+2. Generate a patch:
+{{
+  "type": "generate_patch",
+  "code": "<file_contents>",
+  "error": "<error_description>"
+}}
+
+3. Apply a patch:
+{{
+  "type": "tool",
+  "name": "apply_patch",
+  "args": {{"patch": "<unified_diff>"}}
+}}
+
+4. Run tests:
+{{
+  "type": "tool",
+  "name": "run_tests",
+  "args": {{}}
+}}
+
+5. Commit fix (ONLY if tests passed):
+{{
+  "type": "tool",
+  "name": "git_commit",
+  "args": {{"message": "<commit_message>"}}
+}}
+
+Rules:
+- Output EXACTLY one ACTION JSON
+- No explanations
+- No extra text
+- No markdown
+
+Respond ONLY in this format:
+
+THOUGHT: <one sentence>
 ACTION: <json>
 """
+
 
         return self.reader.complete(prompt)
 
@@ -62,8 +106,10 @@ ACTION: <json>
             action_line = next(l for l in lines if l.startswith("ACTION:"))
             action = action_line.replace("ACTION:", "").strip()
             return eval(action)  # controlled format
-        except Exception:
+        except Exception as e:
+            print("DECIDE PARSE ERROR:", llm_output)
             return None
+
 
 
     def act(self, action: Dict[str, Any], state: AgentState) -> Dict[str, Any]:
