@@ -1,0 +1,45 @@
+name: Self-Healing CI Agent
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-heal:
+    if: "!contains(github.event.head_commit.message, '[ci-auto-fix]')"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run test suite
+        id: run_tests
+        run: |
+          pytest 2>&1 | tee build.log
+        continue-on-error: true
+
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+
+      - name: Run self-healing agent
+        if: failure()
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          python agent.py

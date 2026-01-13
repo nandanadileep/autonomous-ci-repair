@@ -8,16 +8,15 @@ class GitCommit(Tool):
 
     def run(self, message: str):
         try:
+            final_message = f"[ci-auto-fix] {message}"
+
             subprocess.run(["git", "add", "."], check=True)
             subprocess.run(
-                ["git", "commit", "-m", message],
+                ["git", "commit", "-m", final_message],
                 check=True
             )
 
             return {"success": True}
 
         except subprocess.CalledProcessError as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
