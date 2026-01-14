@@ -378,8 +378,56 @@ Output ONLY the unified diff patch, no explanations."""
                 lines = lines[:-1]
             patch = "\n".join(lines)
 
+
+        # Validate and fix additive patches
+        patch = self._fix_additive_patch(patch, code, file_path)
+
         return {
             "success": True,
             "patch": patch
         }
+
+    def _fix_additive_patch(self, patch: str, original_code: str, file_path: str) -> str:
+        """
+        Detect and fix additive patches that add lines instead of replacing them.
+        """
+        import re
+        
+        # Check if patch contains additions without corresponding removals
+        lines = patch.split('\n')
+        additions = [l for l in lines if l.startswith('+') and not l.startswith('+++')]
+        removals = [l for l in lines if l.startswith('-') and not l.startswith('---')]
+        
+        # If we have additions but no removals, it's likely additive
+        if additions and not removals:
+            print("⚠️  WARNING: Detected additive patch. Attempting to fix...")
+            
+            # Extract the assertion pattern from additions
+            for add_line in additions:
+                # Look for assert patterns: assert func(...) == value
+                match = re.search(r'assert\s+(\w+)\([^)]*\)\s*==\s*(\d+)', add_line)
+                if match:
+                    func_call = match.group(0)  # Full assertion
+                    
+                    # Find similar assertion in original code with wrong value
+                    for orig_line in original_code.split('\n'):
+                        if 'assert' in orig_line and func_call.split('==')[0] in orig_line:
+                            # Found the original wrong line - add it as a removal
+                            print(f"   Found original: {orig_line.strip()}")
+                            print(f"   Converting to replacement patch")
+                            
+                            # Rebuild patch with removal
+                            fixed_patch_lines = []
+                            for line in lines:
+                                fixed_patch_lines.append(line)
+                                # Insert removal before addition
+                                if line == add_line and line.startswith('+'):
+                                    # Add the removal line
+                                    removal = '-' + orig_line.strip()
+                                    # Insert before the addition
+                                    fixed_patch_lines.insert(-1, removal)
+                            
+                            return '\n'.join(fixed_patch_lines)
+        
+        return patch
 
