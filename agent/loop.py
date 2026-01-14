@@ -70,6 +70,50 @@ class Agent:
                     llm_output = self.think(state)
                     action = self.decide(llm_output, state)
 
+
+            # 🛡️ GUARDRAIL 4: Anti-Loop Forcing
+            # If we've read files 2+ times in a row without generating a patch,
+            # force patch generation to prevent analysis paralysis.
+            elif len(state.observations) >= 3:
+                # Count consecutive read_file calls
+                recent_reads = 0
+                for obs in reversed(state.observations[-5:]):  # Check last 5
+                    if obs.get("tool") == "read_file":
+                        recent_reads += 1
+                    else:
+                        break  # Stop at first non-read
+                
+                if recent_reads >= 2:
+                    print("⚡ FORCE: Too many file reads. Forcing patch generation...")
+                    print(f"   Detected {recent_reads} consecutive reads. Taking action now.")
+                    
+                    # Extract error and file content from observations
+                    build_log_obs = next((o for o in state.observations if 
+                                         o.get("result", {}).get("path") == "build.log"), None)
+                    test_file_obs = next((o for o in reversed(state.observations) if 
+                                         o.get("result", {}).get("path", "").endswith("test_utils.py")), None)
+                    
+                    if build_log_obs and test_file_obs:
+                        error = build_log_obs.get("result", {}).get("content", "")
+                        code = test_file_obs.get("result", {}).get("content", "")
+                        file_path = test_file_obs.get("result", {}).get("path", "tests/test_utils.py")
+                        
+                        # Force generate_patch action
+                        action = {
+                            "type": "generate_patch",
+                            "file_path": file_path,
+                            "code": code,
+                            "error": error
+                        }
+                    else:
+                        # Fallback to normal flow if we can't extract needed info
+                        llm_output = self.think(state)
+                        action = self.decide(llm_output, state)
+                else:
+                    # Normal LLM reasoning loop
+                    llm_output = self.think(state)
+                    action = self.decide(llm_output, state)
+
             else:
                 # Normal LLM reasoning loop
                 llm_output = self.think(state)
