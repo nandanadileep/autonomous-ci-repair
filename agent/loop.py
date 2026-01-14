@@ -117,8 +117,10 @@ DECISION LOGIC (Check observations carefully!):
 
 CRITICAL: If you see {{'success': True, 'patch': '...'}} in observations, your NEXT action MUST be apply_patch!
 
-Output format (NO extra text, NO markdown):
-THOUGHT: <what you're doing and why>
+CRITICAL INSTRUCTIONS:
+- Do NOT output markdown code blocks (no ```json).
+- Do NOT write explanations or thoughts.
+- Output ONLY the following format:
 ACTION: {{"type": "...", ...}}
 """
 
