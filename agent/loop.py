@@ -33,68 +33,57 @@ class Agent:
         return state
 
     def think(self, state: AgentState) -> str:
-        prompt = f"""
-You are an autonomous CI repair agent.
+        prompt = f"""You are an autonomous CI repair agent that fixes failing tests.
 
-Goal:
-{state.goal}
+Goal: {state.goal}
+Attempts: {state.attempts}/{state.max_attempts}
 
-Attempts:
-{state.attempts}/{state.max_attempts}
-
-Observations so far:
+Previous observations:
 {state.observations}
 
-You MUST choose exactly ONE action.
+CRITICAL WORKFLOW RULES:
+1. ALWAYS read the actual test file BEFORE generating any patch
+2. NEVER guess or hallucinate what code looks like
+3. Use the EXACT file contents you read to generate patches
+4. Generate patches ONLY after reading the file
+5. Apply patches, then run tests, then commit if passing
 
-Allowed actions (JSON only):
+ALLOWED ACTIONS:
 
-1. Read a file:
-{{
-  "type": "tool",
-  "name": "read_file",
-  "args": {{"path": "<file_path>"}}
-}}
+1. Read a file (USE THIS FIRST before generating patches):
+{{"type": "tool", "name": "read_file", "args": {{"path": "<file_path>"}}}}
 
-2. Generate a patch:
-{{
-  "type": "generate_patch",
-  "file_path": "<file_path>",
-  "code": "<file_contents>",
-  "error": "<error_description>"
-}}
+2. Generate a patch (ONLY after reading the file):
+{{"type": "generate_patch", "file_path": "<file_path>", "code": "<actual_file_contents_you_read>", "error": "<error_from_build_log>"}}
 
-3. Apply a patch:
-{{
-  "type": "tool",
-  "name": "apply_patch",
-  "args": {{"patch": "<unified_diff>"}}
-}}
+3. Apply a patch (use the patch you just generated):
+{{"type": "tool", "name": "apply_patch", "args": {{"patch": "<unified_diff>"}}}}
 
-4. Run tests:
-{{
-  "type": "tool",
-  "name": "run_tests",
-  "args": {{}}
-}}
+4. Run tests (to verify your fix worked):
+{{"type": "tool", "name": "run_tests", "args": {{}}}}
 
 5. Commit fix (ONLY if tests passed):
-{{
-  "type": "tool",
-  "name": "git_commit",
-  "args": {{"message": "<commit_message>"}}
-}}
+{{"type": "tool", "name": "git_commit", "args": {{"message": "[ci-auto-fix] <description>"}}}}
 
-Rules:
-- Output EXACTLY one ACTION JSON
-- No explanations
-- No extra text
-- No markdown
+EXAMPLE WORKFLOW:
+- Step 1: Read build.log → See "tests/test_utils.py:4: assert add(1,2) == 192"
+- Step 2: Read tests/test_utils.py → Get ACTUAL file contents
+- Step 3: Generate patch using ACTUAL contents (not guessed!)
+- Step 4: Apply the patch
+- Step 5: Run tests to verify
+- Step 6: If tests pass, commit with [ci-auto-fix] message
 
-Respond ONLY in this format:
+DECISION LOGIC:
+- If you haven't read the failing test file yet → Read it first!
+- If you've read the file but no patch generated → Generate patch with EXACT file contents
+- If patch generated but not applied → Apply it
+- If patch applied but tests not verified → Run tests
+- If tests passed → Commit with [ci-auto-fix] message
+- If tests still fail → Read file again and generate better patch
 
-THOUGHT: <one sentence>
-ACTION: <json>
+Output format (NO extra text, NO markdown):
+THOUGHT: <what you're doing and why>
+ACTION: {{"type": "...", ...}}
 """
 
 
