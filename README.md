@@ -104,10 +104,11 @@ If the fix fails, the agent exits with a clear failure reason.
 
 The agent is designed to overcome common pitfalls of LLM-based coding tools:
 
-### 1. "Super Fuzzy" Patching System
-LLMs often generate correct logic but fail at strict formatting (e.g., wrong line numbers, missing context lines, inconsistent whitespace). This agent implements a custom **fuzzy patching engine** that:
-- **Ignores Line Numbers**: Searches for code context semantically rather than by index.
-- **Ignores Whitespace/Blanks**: Tolerates differences in indentation and vertical spacing (e.g., one blank line vs two).
+### 1. Hyper-Fuzzy Patching (Gemini-Proof)
+LLMs often hallucinate context values (e.g., "assert x == 426" when the file has "assert x == 428"). 
+Standard patch application fails here. This agent uses **Hyper-Fuzzy Patching**:
+- If exact match fails, it uses `difflib.SequenceMatcher` to find the code block with >80% similarity.
+- This allows the agent to apply fixes even if it "misremembers" the context lines, making it extremely resilient to Model Hallucinations.
 - **Fallback Logic**: Tries strict `git apply` first for safety, then falls back to fuzzy content matching to partial-apply valid fixes.
 
 ### 2. Auto-Pilot Guardrails (Deterministic Workflow)
