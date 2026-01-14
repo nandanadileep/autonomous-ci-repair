@@ -43,6 +43,33 @@ class Agent:
                     "args": {"message": "[ci-auto-fix] Fix failing tests automatically"}
                 }
 
+            # 🛡️ GUARDRAIL 3: Partial Success Retry
+            # If we just ran tests, they failed, but we had applied a patch before,
+            # it means the patch was incomplete. Force another patch attempt.
+            elif (last_tool == "run_tests" and 
+                  not last_result_success and
+                  len(state.observations) >= 2):
+                # Check if we applied a patch recently (within last 3 observations)
+                recent_patch_applied = False
+                for obs in state.observations[-3:]:
+                    if obs.get("tool") == "apply_patch" and obs.get("success"):
+                        recent_patch_applied = True
+                        break
+                
+                if recent_patch_applied:
+                    print("🔄 RETRY: Patch was incomplete. Forcing another fix attempt...")
+                    # Count failures to show progress
+                    failed_count = last_stdout.count("FAILED")
+                    print(f"   Still {failed_count} test(s) failing. Generating additional patch...")
+                    # Skip normal LLM reasoning, go straight to generating another patch
+                    # by letting the normal flow handle it but with a hint
+                    llm_output = self.think(state)
+                    action = self.decide(llm_output, state)
+                else:
+                    # Normal LLM reasoning loop
+                    llm_output = self.think(state)
+                    action = self.decide(llm_output, state)
+
             else:
                 # Normal LLM reasoning loop
                 llm_output = self.think(state)

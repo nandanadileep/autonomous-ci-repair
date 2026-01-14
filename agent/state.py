@@ -13,7 +13,7 @@ class AgentState:
     goal: str = "Fix failing CI build. The test failure log is in build.log in the current directory."
 
     # Iteration control
-    max_attempts: int = 10
+    max_attempts: int = 15  # Increased for retry logic resilience
     attempts: int = 0
 
     # Termination flags
