@@ -310,7 +310,7 @@ ACTION: {{"type": "...", ...}}
         error = action.get("error", "")
         file_path = action.get("file_path", "")
 
-        prompt = f"""You are a senior Python engineer fixing test failures.
+        prompt = f"""You are a senior Python engineer fixing test failures by REPLACING incorrect assertions.
 
 File: {file_path}
 
@@ -322,26 +322,45 @@ Current code:
 Error from test output:
 {error}
 
-CRITICAL: Generate a SINGLE unified diff patch that fixes ALL failing test assertions shown in the error above.
-The patch must:
-1. Fix EVERY failing assertion (not just one of them)
-2. Use the EXACT function names and line structure from the code above
-3. Change ONLY the incorrect expected values to match what the function actually returns
-4. Be in standard unified diff format (no markdown, no code blocks)
-5. The context lines (lines starting with space) MUST match the provided code EXACTLY
+YOUR TASK: Generate a unified diff patch that REPLACES incorrect assertion values with correct ones.
 
-Example format (fixing multiple assertions):
+⚠️ CRITICAL RULES:
+1. DO NOT add new assertion lines
+2. DO NOT create duplicate assertions  
+3. Each assertion should appear ONLY ONCE in the final result
+4. Use MINUS (-) to mark the WRONG line for REMOVAL
+5. Use PLUS (+) to mark the CORRECT line for ADDITION
+6. The function call stays the same, only the expected value changes
+
+❌ WRONG (adds duplicate lines):
+ def test_add():
+     assert add(987, 0) == 1000
++    assert add(987, 0) == 987    # ❌ Creates duplicate!
+
+✅ CORRECT (replaces the line):
+ def test_add():
+-    assert add(987, 0) == 1000   # ❌ Remove wrong value
++    assert add(987, 0) == 987    # ✅ Add correct value
+
+EXAMPLE - Fix TWO assertions:
 --- {file_path}
 +++ {file_path}
-@@ -3,7 +3,7 @@
+@@ -2,7 +2,7 @@
+ 
  def test_add():
      assert add(1, 2) == 3
 -    assert add(424, 2) == 428
 +    assert add(424, 2) == 426
--    assert add(987, 0) == 988
+-    assert add(987, 0) == 1000
 +    assert add(987, 0) == 987
 
-Output ONLY the unified diff patch that fixes ALL errors, nothing else."""
+REMEMBER:
+- Each test line should appear ONCE in the result
+- - (minus) = remove the WRONG assertion
+- + (plus) = add the CORRECT assertion  
+- Both lines have the same function call, different expected values
+
+Output ONLY the unified diff patch, no explanations."""
 
         patch = self.coder.complete(prompt)
 
