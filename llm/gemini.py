@@ -16,8 +16,8 @@ class GeminiFlash(LLM):
         # Create client (NO configure(), this is the new API)
         self.client = genai.Client(api_key=api_key)
 
-        # Use a model that is guaranteed to be enabled
-        self.model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
+        # Use stable model with higher quota (gemini-2.0-flash-exp has only 10 req/min)
+        self.model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-002")
 
     def complete(self, prompt: str) -> str:
         response = self.client.models.generate_content(
