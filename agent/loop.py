@@ -100,16 +100,33 @@ ACTION: <json>
 
         return self.reader.complete(prompt)
 
+
     def decide(self, llm_output: str, state: AgentState) -> Dict[str, Any] | None:
 
         try:
-            lines = llm_output.splitlines()
-            action_line = next(l for l in lines if l.startswith("ACTION:"))
-            action = action_line.replace("ACTION:", "").strip()
-            return eval(action)  # controlled format
-        except Exception as e:
-            print("DECIDE PARSE ERROR:", llm_output)
+            # Find the ACTION: marker
+            if "ACTION:" not in llm_output:
+                print("DECIDE PARSE ERROR: No ACTION found in output")
+                print(llm_output)
+                return None
+            
+            # Extract everything after "ACTION:"
+            action_start = llm_output.find("ACTION:")
+            action_text = llm_output[action_start + len("ACTION:"):].strip()
+            
+            # Parse the JSON (handles multi-line JSON)
+            import json
+            return json.loads(action_text)
+            
+        except json.JSONDecodeError as e:
+            print(f"DECIDE JSON PARSE ERROR: {e}")
+            print("Output was:", llm_output)
             return None
+        except Exception as e:
+            print(f"DECIDE PARSE ERROR: {e}")
+            print(llm_output)
+            return None
+
 
 
 
