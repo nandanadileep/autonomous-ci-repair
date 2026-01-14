@@ -1,24 +1,171 @@
-# autonomous-ci-repair
-
-An autonomous CI agent that diagnoses failing builds, identifies the root cause from logs,
-generates code fixes using multi-model reasoning, verifies the fix, and commits it back automatically.
-
+# Autonomous CI Repair 🤖🛠️
+#
+# An autonomous agent that detects failing CI builds, diagnoses test failures from logs,
+# generates code fixes using multi-model LLM reasoning, verifies them,
+# and commits fixes back to the repository automatically.
+#
+# ------------------------------------------------------------
+#
+##  How to Use This in Your Repository (Recommended)
+#
+## Step 1: Add a GitHub Actions Workflow
+#
+# Create the following file in your repository:
+# .github/workflows/ci.yml
+#
+# Use this configuration:
+#
+# name: CI with Self-Healing
+# on:
+#   push:
+#     branches: [main]
+#   pull_request:
+#
+# permissions:
+#   contents: write
+#
+# jobs:
+#   test:
+#     uses: nandanadileep/autonomous-ci-repair/.github/workflows/self_healing_reusable.yml@main
+#     with:
+#       python-version: "3.11"
+#       test-command: "pytest -v"
+#     secrets:
+#       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+#       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+#
+# ------------------------------------------------------------
+#
+## Step 2: Add Required Secrets
+#
+# Go to GitHub
+# Settings → Secrets → Actions
+#
+# Add the following secrets:
+#
+# - GEMINI_API_KEY
+# - GROQ_API_KEY
+#
+# ------------------------------------------------------------
+#
+## Step 3: Push Code
+#
+# When CI tests fail, the agent automatically:
+#
+# - Analyzes failure logs
+# - Reads relevant source files
+# - Reads relevant test files
+# - Generates a fix using LLM reasoning
+# - Verifies the fix by re-running tests
+# - Commits the fix with [ci-auto-fix]
+# - Triggers CI again
+#
+# No human intervention required.
+#
+# ------------------------------------------------------------
+#
+##  What This Agent Does
+#
+# When a CI build fails:
+#
+# - Parses test logs to identify the root cause
+# - Reads relevant files from the repository
+# - Uses LLM reasoning to generate a patch
+# - Applies the patch using git
+# - Runs tests to verify the fix
+# - Commits only if tests pass
+#
+# If the fix fails, the agent exits with a clear failure reason.
+#
+# ------------------------------------------------------------
+#
+##  Architecture Overview
+#
+## Agent Loop (agent/loop.py)
+#
+# - Explicit reasoning to action loop
+# - Deterministic and debuggable execution
+# - Enforces safety limits
+#
+## State Manager (agent/state.py)
+#
+# - Tracks attempts
+# - Tracks file edits
+# - Tracks observations
+# - Defines termination conditions
+#
+## LLM Providers (llm/)
+#
+# - Reader model for failure analysis and planning
+# - Coder model for patch generation
+#
+## Tools (tools/)
+#
+# - Read files
+# - Apply git patches
+# - Run tests
+# - Commit changes
+#
+# ------------------------------------------------------------
+#
+## Safety Features
+#
+# - Maximum attempt limit (default: 3)
+# - Tests must pass before committing
+# - Commits tagged with [ci-auto-fix] to prevent infinite loops
+# - Explicit failure states
+# - File modification tracking
+#
+# ------------------------------------------------------------
+#
+## Limitations
+#
+# - Python projects using pytest only
+# - Best suited for deterministic test failures
+#
+# Not supported yet:
+#
+# - Dependency conflicts
+# - Infrastructure issues
+# - Multi-language repositories
+#
+# ------------------------------------------------------------
+#
+##  Run Locally
+#
+# export GEMINI_API_KEY=your_key
+# export GROQ_API_KEY=your_key
+#
+# python agent.py
+#
+# Run inside a repository with failing tests.
+#
+# ------------------------------------------------------------
+#
 ## Why This Exists
-
-CI failures break developer flow. This agent acts as a junior DevOps engineer that never sleeps.
-
-## Core Ideas
-
-- Multi-model reasoning (log analysis vs code repair)
-- Explicit agent loop (no agent frameworks)
-- Deterministic tool execution
-- Verification before commit
-- Zero-cost production stack
-
-## Architecture
-
-(coming soon)
-
-## Status
-
-🚧 In active development
+#
+# CI failures are repetitive, disruptive, and often trivial.
+#
+# This agent treats CI failures as automatable engineering tasks,
+# not human emergencies.
+#
+# ------------------------------------------------------------
+#
+## Roadmap
+#
+# - Multi-language support
+# - Smarter multi-file refactors
+# - Fix caching for repeated failures
+# - Dashboard for monitoring fixes
+# - Fine-tuned code-repair models
+#
+# ------------------------------------------------------------
+#
+## License
+#
+# Provided as-is for educational and experimental use.
+# No warranty.
+#
+# ------------------------------------------------------------
+#
+# CI should fix itself.
