@@ -2,6 +2,7 @@ from agent.state import AgentState
 from agent.loop import Agent
 
 from llm.llama import LlamaGroq
+from llm.gemini import GeminiFlash
 
 from tools.read_file import ReadFile
 from tools.apply_patch import ApplyPatch
@@ -12,8 +13,9 @@ from tools.git_ops import GitCommit
 def main():
     state = AgentState()
 
-    reader_llm = LlamaGroq()   # planning / analysis
-    coder_llm = LlamaGroq()      # code generation
+    # Switch to Gemini for better stability (less 429s)
+    reader_llm = GeminiFlash()   # planning / analysis
+    coder_llm = GeminiFlash()      # code generation
 
     tools = {
         "read_file": ReadFile(),
