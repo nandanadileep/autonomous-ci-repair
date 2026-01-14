@@ -59,6 +59,7 @@ Allowed actions (JSON only):
 2. Generate a patch:
 {{
   "type": "generate_patch",
+  "file_path": "<file_path>",
   "code": "<file_contents>",
   "error": "<error_description>"
 }}
@@ -144,30 +145,60 @@ ACTION: <json>
         }
 
 
+
     def _generate_patch(self, action: Dict[str, Any], state: AgentState) -> Dict[str, Any]:
         """
         Use the coder LLM to generate a patch.
         """
-        code = action.get("code")
-        error = action.get("error")
+        code = action.get("code", "")
+        error = action.get("error", "")
+        file_path = action.get("file_path", "")
 
-        prompt = f"""
-        You are a senior Python engineer.
+        prompt = f"""You are a senior Python engineer fixing test failures.
 
-        Bug description:
-        {error}
+File: {file_path}
 
-        Code:
-        ```python
-        {code}
-        Return ONLY a unified diff patch.
-        """
+Current code:
+```python
+{code}
+```
+
+Error from test output:
+{error}
+
+Generate a unified diff patch to fix the test assertions. The patch must:
+1. Use the EXACT function names from the code above
+2. Fix the assertion values to match what the function actually returns
+3. Be in standard unified diff format (no markdown, no code blocks)
+
+Example format:
+--- {file_path}
++++ {file_path}
+@@ -3,5 +3,5 @@
+ def test_add():
+-    assert add(1, 2) == 192
++    assert add(1, 2) == 3
+
+Output ONLY the unified diff patch, nothing else."""
+
         patch = self.coder.complete(prompt)
 
         if not patch:
             return {"success": False, "error": "Patch generation failed"}
 
+        # Strip markdown code blocks if present  
+        patch = patch.strip()
+        if patch.startswith("```"):
+            lines = patch.split("\n")
+            # Remove first and last lines if they're code block markers
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            patch = "\n".join(lines)
+
         return {
             "success": True,
             "patch": patch
         }
+
