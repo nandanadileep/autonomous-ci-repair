@@ -126,31 +126,52 @@ ACTION: {{"type": "...", ...}}
         return self.reader.complete(prompt)
 
 
-    def decide(self, llm_output: str, state: AgentState) -> Dict[str, Any] | None:
+    def decide(self, llm_output: str, state: AgentState) -> dict:
+        """Parse the LLM output to determine the next action."""
+        import json
+        import re
 
+        json_str = ""
+        
+        # Strategy 1: Look for ACTION: prefix
+        if "ACTION:" in llm_output:
+            try:
+                candidate = llm_output.split("ACTION:", 1)[1].strip()
+                # Remove markdown code blocks if present
+                candidate = re.sub(r"^```json", "", candidate).strip()
+                candidate = re.sub(r"^```", "", candidate).strip()
+                if candidate.endswith("```"):
+                    candidate = candidate[:-3].strip()
+                json_str = candidate
+            except Exception:
+                pass
+
+        # Strategy 2: If finding by prefix failed, look for the first {...} block
+        if not json_str:
+            # Use re.DOTALL to allow '.' to match newlines within the JSON block
+            matches = re.search(r"(\{.*\})", llm_output, re.DOTALL)
+            if matches:
+                json_str = matches.group(1)
+
+        if not json_str:
+             # If no JSON string was found by either strategy, return an unknown action
+             return {"type": "unknown", "error": "No JSON action found in output"}
+
+        # Attempt to parse the found JSON string
         try:
-            # Find the ACTION: marker
-            if "ACTION:" not in llm_output:
-                print("DECIDE PARSE ERROR: No ACTION found in output")
-                print(llm_output)
-                return None
-            
-            # Extract everything after "ACTION:"
-            action_start = llm_output.find("ACTION:")
-            action_text = llm_output[action_start + len("ACTION:"):].strip()
-            
-            # Parse the JSON (handles multi-line JSON)
-            import json
-            return json.loads(action_text)
-            
+            json_str = json_str.strip()
+            action = json.loads(json_str)
+            return action
         except json.JSONDecodeError as e:
+            # If JSON parsing fails, return an error action with details
             print(f"DECIDE JSON PARSE ERROR: {e}")
             print("Output was:", llm_output)
-            return None
+            return {"type": "unknown", "error": f"Invalid JSON: {str(e)}", "raw": json_str}
         except Exception as e:
+            # Catch any other unexpected errors during parsing
             print(f"DECIDE PARSE ERROR: {e}")
             print(llm_output)
-            return None
+            return {"type": "unknown", "error": f"Unexpected error during parsing: {str(e)}", "raw": json_str}
 
 
 
@@ -212,6 +233,7 @@ Generate a unified diff patch to fix the test assertions. The patch must:
 1. Use the EXACT function names from the code above
 2. Fix the assertion values to match what the function actually returns
 3. Be in standard unified diff format (no markdown, no code blocks)
+4. The context lines (lines starting with space) MUST match the provided code EXACTLY. Do not hallucinate values in context lines.
 
 Example format:
 --- {file_path}
