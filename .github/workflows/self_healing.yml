@@ -1,4 +1,4 @@
-# .github/workflows/self_healing_reusable.yml
+# .github/workflows/self_healing.yml
 name: Reusable Self-Healing CI
 
 on:
@@ -60,12 +60,12 @@ jobs:
       - name: Run test suite
         id: run_tests
         run: |
-          set +e  # Don't exit on error
+          set +e
           ${{ inputs.test-command }} 2>&1 | tee build.log
           TEST_EXIT_CODE=$?
           echo "exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
-          exit 0  # Always succeed so workflow continues
-        
+          exit 0
+
       - name: Upload build log
         if: steps.run_tests.outputs.exit_code != '0'
         uses: actions/upload-artifact@v4
