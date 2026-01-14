@@ -57,7 +57,7 @@ class ApplyPatch(Tool):
     def _fuzzy_apply(self, patch: str) -> bool:
         """
         Manually parses a unified diff and applies changes by searching for context blocks.
-        Ignores line numbers in the diff.
+        Ignores line numbers and is whitespace-forgiving.
         """
         lines = patch.split('\n')
         target_file = None
@@ -65,7 +65,6 @@ class ApplyPatch(Tool):
         # 1. Find target file
         for line in lines:
             if line.startswith('+++ '):
-                # Format: +++ b/path/to/file or +++ path/to/file
                 clean_path = line[4:].strip()
                 if clean_path.startswith('b/'):
                     clean_path = clean_path[2:]
@@ -79,10 +78,10 @@ class ApplyPatch(Tool):
             raise FileNotFoundError(f"Target file {target_file} not found")
 
         with open(target_file, 'r') as f:
-            content = f.read()
+            file_lines = f.readlines()
 
         # 2. Extract chunks
-        chunks = [] # List of (search_block, replace_block)
+        chunks = [] # List of (search_lines, replace_lines)
         current_search = []
         current_replace = []
         in_chunk = False
@@ -90,7 +89,7 @@ class ApplyPatch(Tool):
         for line in lines:
             if line.startswith('@@'):
                 if in_chunk:
-                    chunks.append(("\n".join(current_search), "\n".join(current_replace)))
+                    chunks.append((current_search, current_replace))
                 current_search = []
                 current_replace = []
                 in_chunk = True
@@ -99,45 +98,88 @@ class ApplyPatch(Tool):
             if not in_chunk:
                 continue
 
+            # Handle No newline at end of file
+            if line.startswith('\\ No newline'):
+                continue
+
             if line.startswith(' '):
-                # Context line: appears in both
-                code = line[1:]
-                current_search.append(code)
-                current_replace.append(code)
+                context = line[1:]
+                current_search.append(context)
+                current_replace.append(context)
             elif line.startswith('-'):
-                # Deletion: appears in search only
                 current_search.append(line[1:])
             elif line.startswith('+'):
-                # Addition: appears in replace only
                 current_replace.append(line[1:])
         
-        # Access last chunk
         if in_chunk and (current_search or current_replace):
-            chunks.append(("\n".join(current_search), "\n".join(current_replace)))
+            chunks.append((current_search, current_replace))
 
         if not chunks:
             raise ValueError("No valid chunks found in patch")
 
         # 3. Apply chunks
-        modified_content = content
+        # We process chunks one by one, updating file_lines
         changes_made = False
 
-        for search_block, replace_block in chunks:
-            if search_block in modified_content:
-                modified_content = modified_content.replace(search_block, replace_block, 1)
+        for search_lines, replace_lines in chunks:
+            # Try to find the search_lines in file_lines (ignoring whitespace)
+            match_index = -1
+            
+            # Helper to strip whitespace for comparison
+            search_stripped = [s.strip() for s in search_lines if s.strip()]
+            if not search_stripped:
+                continue # Skip empty chunks
+
+            # Naive search for the block
+            for i in range(len(file_lines) - len(search_lines) + 1):
+                # Check if this window matches
+                match = True
+                search_idx = 0
+                file_idx = 0
+                
+                # Careful line-by-line check with whitespace normalization
+                # We need to match all non-empty search lines
+                current_window_file_lines = []
+                
+                # Logic: iterate through search_lines, find corresponding match in file starting at i
+                # This is tricky because we want to preserve file's original indentation if possible?
+                # Actually, simpler: Exact match on .strip() content
+                
+                # Let's verify strict stripped match for all lines
+                match = True
+                for k, s_line in enumerate(search_lines):
+                    if i + k >= len(file_lines):
+                        match = False
+                        break
+                    f_line = file_lines[i + k]
+                    if s_line.strip() != f_line.strip():
+                        match = False
+                        break
+                
+                if match:
+                    match_index = i
+                    break
+            
+            if match_index != -1:
+                # Found it! Replace file_lines[match_index : match_index + len(search_lines)]
+                # BUT we need to handle formatting of replace_lines. 
+                # LLM patches provided replace_lines with some indentation.
+                # simpler approach: just insert the replace_lines as strings (adding newlines if needed)
+                
+                # Prepare replace lines with newlines
+                final_replace = [L + '\n' if not L.endswith('\n') else L for L in replace_lines]
+                
+                # Replace the slice
+                file_lines[match_index : match_index + len(search_lines)] = final_replace
                 changes_made = True
             else:
-                # Try more lenient whitespace matching? For now, fail if strict match fails
-                # Often LLM adds/removes trailing newlines
-                if search_block.strip() in modified_content:
-                     modified_content = modified_content.replace(search_block.strip(), replace_block, 1)
-                     changes_made = True
-                else:
-                    raise ValueError(f"Could not locate original code block for chunk:\n{search_block}")
+                # Failed to find matches
+                error_context = '\n'.join(search_lines)
+                raise ValueError(f"Could not locate block in file (whitespace ignore):\n{error_context}")
 
         if changes_made:
             with open(target_file, 'w') as f:
-                f.write(modified_content)
+                f.writelines(file_lines)
             return True
         
         return False
