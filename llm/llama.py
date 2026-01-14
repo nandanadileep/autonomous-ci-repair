@@ -15,7 +15,7 @@ class LlamaGroq(LLM):
         self.api_key = os.environ["GROQ_API_KEY"]
 
     def complete(self, prompt: str) -> str:
-        max_retries = 3
+        max_retries = 6
         timeout = 60  # Increased from 30 to 60 seconds
         
         for attempt in range(max_retries):
