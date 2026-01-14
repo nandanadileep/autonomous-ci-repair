@@ -12,8 +12,8 @@ class Agent:
     def run(self, state: AgentState) -> AgentState:
         while state.can_continue():
             
-            # 🛡️ GUARDRAIL: If we just generated a patch, force apply it immediately.
-            # This prevents the LLM from "thinking" about it and potentially stalling.
+            # 🛡️ GUARDRAIL 1: Auto-Pilot Patching
+            # If we just generated a patch, force apply it immediately.
             last_obs = state.observations[-1] if state.observations else {}
             if last_obs.get("success") and "patch" in last_obs:
                 print("🤖 AUTO-PILOT: Patch detected. Applying immediately...")
@@ -22,6 +22,19 @@ class Agent:
                     "name": "apply_patch", 
                     "args": {"patch": last_obs["patch"]}
                 }
+            
+            # 🛡️ GUARDRAIL 2: Auto-Commit on Success
+            # If we just ran tests and they PASSED, force commit immediately.
+            elif (last_obs.get("tool") == "run_tests" and 
+                  last_obs.get("result", {}).get("success") is True and
+                  "passed" in last_obs.get("result", {}).get("stdout", "").lower()):
+                print("🤖 AUTO-PILOT: Tests passed. Committing immediately...")
+                action = {
+                    "type": "tool",
+                    "name": "git_commit",
+                    "args": {"message": "[ci-auto-fix] Fix failing tests automatically"}
+                }
+
             else:
                 # Normal LLM reasoning loop
                 llm_output = self.think(state)
