@@ -11,8 +11,21 @@ class Agent:
 
     def run(self, state: AgentState) -> AgentState:
         while state.can_continue():
-            thought = self.think(state)
-            action = self.decide(thought, state)
+            
+            # 🛡️ GUARDRAIL: If we just generated a patch, force apply it immediately.
+            # This prevents the LLM from "thinking" about it and potentially stalling.
+            last_obs = state.observations[-1] if state.observations else {}
+            if last_obs.get("success") and "patch" in last_obs:
+                print("🤖 AUTO-PILOT: Patch detected. Applying immediately...")
+                action = {
+                    "type": "tool", 
+                    "name": "apply_patch", 
+                    "args": {"patch": last_obs["patch"]}
+                }
+            else:
+                # Normal LLM reasoning loop
+                llm_output = self.think(state)
+                action = self.decide(llm_output, state)
 
             if action is None:
                 state.fail("Failed to decide next action")
@@ -73,13 +86,15 @@ EXAMPLE WORKFLOW:
 - Step 5: Run tests to verify
 - Step 6: If tests pass, commit with [ci-auto-fix] message
 
-DECISION LOGIC:
+DECISION LOGIC (Check observations carefully!):
+- Look at your observations - do you see a 'patch' key in any observation? → If YES, apply that patch NOW!
 - If you haven't read the failing test file yet → Read it first!
-- If you've read the file but no patch generated → Generate patch with EXACT file contents
-- If patch generated but not applied → Apply it
-- If patch applied but tests not verified → Run tests
-- If tests passed → Commit with [ci-auto-fix] message
+- If you've read the file but no patch in observations → Generate patch with EXACT file contents
+- If you just applied a patch but tests not verified → Run tests
+- If tests passed (exit code 0) → Commit with [ci-auto-fix] message
 - If tests still fail → Read file again and generate better patch
+
+CRITICAL: If you see {{'success': True, 'patch': '...'}} in observations, your NEXT action MUST be apply_patch!
 
 Output format (NO extra text, NO markdown):
 THOUGHT: <what you're doing and why>
