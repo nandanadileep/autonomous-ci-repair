@@ -13,7 +13,7 @@ class AgentState:
     goal: str = "Fix failing CI build. The test failure log is in build.log in the current directory."
 
     # Iteration control
-    max_attempts: int = 15  # Increased for retry logic resilience
+    max_attempts: int = 8  # Reduced to stay under 10 req/min Gemini quota
     attempts: int = 0
 
     # Termination flags
