@@ -193,6 +193,15 @@ ACTION: {{"type": "...", ...}}
         if action_type == "generate_patch":
             return self._generate_patch(action, state)
 
+        # Handle direct tool invocations (e.g., {"type": "read_file", "args": {...}})
+        # Convert to wrapped format and delegate to _run_tool
+        if action_type in ["read_file", "run_tests", "apply_patch", "git_commit"]:
+            wrapped_action = {
+                "type": "tool",
+                "name": action_type,
+                "args": action.get("args", {})
+            }
+            return self._run_tool(wrapped_action, state)
     
         print("=" * 80)
         print("CRITICAL DEBUG: Unknown action type received")
