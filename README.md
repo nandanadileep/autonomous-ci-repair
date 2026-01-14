@@ -100,6 +100,14 @@ If the fix fails, the agent exits with a clear failure reason.
 - ✅ Explicit failure states
 - ✅ File modification tracking
 
+##  Robustness
+
+- **Fuzzy Patching**: If standard git patching fails, the agent uses a robust fuzzy matcher that:
+    - Ignores line number mismatches common in LLM outputs
+    - Ignores whitespace and indentation differences
+    - Handles hallucinated or missing blank lines
+    - Ensures patches apply correctly even if the LLM's view of the file is slightly imperfect
+
 ---
 
 ## Limitations
