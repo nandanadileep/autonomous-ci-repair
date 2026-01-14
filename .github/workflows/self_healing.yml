@@ -1,48 +1,69 @@
-name: Self-Healing CI Agent
+# .github/workflows/self_healing_reusable.yml
+name: Reusable Self-Healing CI
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-  pull_request:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.11'
+      test-command:
+        description: 'Command to run tests'
+        required: false
+        type: string
+        default: 'pytest -v'
+    secrets:
+      GEMINI_API_KEY:
+        required: true
+      GROQ_API_KEY:
+        required: true
 
 permissions:
-  contents: write  # Required to push commits
+  contents: write
 
 jobs:
   test-and-heal:
-    # Skip if this is an auto-fix commit to prevent loops
     if: "!contains(github.event.head_commit.message, '[ci-auto-fix]')"
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout target repo
         uses: actions/checkout@v4
         with:
-          # Default: uses GITHUB_TOKEN (commits as github-actions[bot])
-          # For fork PRs: create PAT and use ${{ secrets.PAT_TOKEN }}
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+
+      - name: Checkout self-healing agent
+        uses: actions/checkout@v4
+        with:
+          repository: nandanadileep/autonomous-ci-repair
+          path: .ci-agent
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ inputs.python-version }}
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install target repo dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Install agent dependencies
+        run: |
+          pip install -r .ci-agent/requirements.txt
 
       - name: Run test suite
         id: run_tests
         run: |
-          pytest -v 2>&1 | tee build.log
+          ${{ inputs.test-command }} 2>&1 | tee build.log
         continue-on-error: true
 
-      - name: Upload build log (on failure)
+      - name: Upload build log
         if: steps.run_tests.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
@@ -53,7 +74,6 @@ jobs:
       - name: Configure Git
         if: steps.run_tests.outcome == 'failure'
         run: |
-          # Commits will appear as "github-actions[bot]"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
@@ -64,12 +84,12 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           echo "🤖 Starting self-healing agent..."
-          python agent.py
+          cd ${{ github.workspace }}
+          python .ci-agent/agent.py
 
       - name: Push auto-fix commit
         if: steps.run_tests.outcome == 'failure'
         run: |
-          # Check if there are any commits made by the agent
           if git log --oneline -1 | grep -q "\[ci-auto-fix\]"; then
             echo "✅ Auto-fix commit detected, pushing..."
             git push
@@ -82,7 +102,7 @@ jobs:
         if: steps.run_tests.outcome == 'failure'
         run: |
           echo "🧪 Running tests again to verify the fix..."
-          pytest -v
+          ${{ inputs.test-command }}
 
       - name: Report status
         if: always()
