@@ -17,7 +17,7 @@ class GeminiFlash(LLM):
         self.client = genai.Client(api_key=api_key)
 
         # Use a model that is guaranteed to be enabled
-        self.model = "gemini-1.5-flash"
+        self.model = "gemini-1.5-flash-001"
 
     def complete(self, prompt: str) -> str:
         response = self.client.models.generate_content(
