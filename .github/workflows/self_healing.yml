@@ -1,8 +1,14 @@
-name: Self-Healing CI Agent
+name: Autonomous Repair CI Agent
 
 on:
   push:
+    branches:
+      - main
+      - develop
   pull_request:
+
+permissions:
+  contents: write  
 
 jobs:
   test-and-heal:
@@ -12,11 +18,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'  
 
       - name: Install dependencies
         run: |
@@ -26,20 +36,55 @@ jobs:
       - name: Run test suite
         id: run_tests
         run: |
-          pytest 2>&1 | tee build.log
+          pytest -v 2>&1 | tee build.log
         continue-on-error: true
 
-      - name: Upload build log
-        if: failure()
+      - name: Upload build log (on failure)
+        if: steps.run_tests.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: build-log
+          name: build-log-${{ github.sha }}
           path: build.log
+          retention-days: 7
+
+      - name: Configure Git
+        if: steps.run_tests.outcome == 'failure'
+        run: |
+          git config --global user.name "CI autonomous Bot"
+          git config --global user.email "ci-bot@github-actions"
 
       - name: Run self-healing agent
-        if: failure()
+        if: steps.run_tests.outcome == 'failure'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
+          echo "Starting the agent..."
           python agent.py
+
+      - name: Push auto-fix commit
+        if: steps.run_tests.outcome == 'failure'
+        run: |
+          # Check if there are any commits made by the agent
+          if git log --oneline -1 | grep -q "\[ci-auto-fix\]"; then
+            echo "Auto-fix commit detected, pushing..."
+            git push
+          else
+            echo "No auto-fix commit was made"
+            exit 1
+          fi
+
+      - name: Verify fix
+        if: steps.run_tests.outcome == 'failure'
+        run: |
+          echo "Running tests again to verify the fix..."
+          pytest -v
+
+      - name: Report status
+        if: always()
+        run: |
+          if [ "${{ steps.run_tests.outcome }}" == "success" ]; then
+            echo "Tests passed on first run"
+          else
+            echo "Tests failed, self-healing attempted"
+          fi
