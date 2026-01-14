@@ -61,8 +61,9 @@ jobs:
         id: run_tests
         run: |
           set +e
+          set -o pipefail
           ${{ inputs.test-command }} 2>&1 | tee build.log
-          TEST_EXIT_CODE=$?
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
           echo "exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
           exit 0
 
