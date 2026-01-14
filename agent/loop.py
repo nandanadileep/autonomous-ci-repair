@@ -25,9 +25,17 @@ class Agent:
             
             # 🛡️ GUARDRAIL 2: Auto-Commit on Success
             # If we just ran tests and they PASSED, force commit immediately.
-            elif (last_obs.get("tool") == "run_tests" and 
-                  last_obs.get("result", {}).get("success") is True and
-                  "passed" in last_obs.get("result", {}).get("stdout", "").lower()):
+            # Relaxed logic: Check truthiness of success, case-insensitive output check
+            last_tool = last_obs.get("tool")
+            last_result_success = last_obs.get("result", {}).get("success")
+            last_stdout = last_obs.get("result", {}).get("stdout", "").lower()
+
+            # DEBUG: Print checking state
+            # print(f"DEBUG CHECK: Tool={last_tool}, Success={last_result_success}, PassedInLog={'passed' in last_stdout}")
+
+            if (last_tool == "run_tests" and 
+                last_result_success and 
+                "passed" in last_stdout):
                 print("🤖 AUTO-PILOT: Tests passed. Committing immediately...")
                 action = {
                     "type": "tool",
