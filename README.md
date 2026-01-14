@@ -111,7 +111,7 @@ LLMs often generate correct logic but fail at strict formatting (e.g., wrong lin
 - **Fallback Logic**: Tries strict `git apply` first for safety, then falls back to fuzzy content matching to partial-apply valid fixes.
 
 ### 2. Anti-Stalling & Decision Determinism
-- **Prompt Engineering**: The agent's "thought process" is strictly constrained to prevent inaction. If a patch is generated, the system forces an immediate application attempt.
+- **Auto-Pilot Guardrail**: The system programmatically forces the agent to **Apply Patch** immediately after generation, bypassing the LLM. This prevents "thought loops" where the model hesitates to modify code.
 - **Workflow Enforcement**: Rules like *"ALWAYS read the file before patching"* are baked into the system prompt to prevent hallucinated code edits.
 
 ### 3. CI Integration
