@@ -110,9 +110,11 @@ LLMs often generate correct logic but fail at strict formatting (e.g., wrong lin
 - **Ignores Whitespace/Blanks**: Tolerates differences in indentation and vertical spacing (e.g., one blank line vs two).
 - **Fallback Logic**: Tries strict `git apply` first for safety, then falls back to fuzzy content matching to partial-apply valid fixes.
 
-### 2. Anti-Stalling & Decision Determinism
-- **Auto-Pilot Guardrail**: The system programmatically forces the agent to **Apply Patch** immediately after generation, bypassing the LLM. This prevents "thought loops" where the model hesitates to modify code.
-- **Workflow Enforcement**: Rules like *"ALWAYS read the file before patching"* are baked into the system prompt to prevent hallucinated code edits.
+### 2. Auto-Pilot Guardrails (Deterministic Workflow)
+To prevent "AI indecision," the agent enforces a strict state machine for critical steps:
+- **Auto-Apply**: If a patch is generated, it is applied *immediately* without further debate.
+- **Auto-Commit**: If tests pass after a fix, the agent *immediately* commits the results.
+This ensures the agent never gets stuck in a "thinking loop" when the path forward is clear.
 
 ### 3. CI Integration
 - **Exit Code Capture**: Uses `PIPESTATUS` to correctly capture test failures even when piped through other commands, ensuring the self-healing process triggers reliably.
