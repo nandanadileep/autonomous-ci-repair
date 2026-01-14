@@ -100,13 +100,22 @@ If the fix fails, the agent exits with a clear failure reason.
 - ✅ Explicit failure states
 - ✅ File modification tracking
 
-##  Robustness
+##  Core Intelligence & Robustness
 
-- **Fuzzy Patching**: If standard git patching fails, the agent uses a robust fuzzy matcher that:
-    - Ignores line number mismatches common in LLM outputs
-    - Ignores whitespace and indentation differences
-    - Handles hallucinated or missing blank lines
-    - Ensures patches apply correctly even if the LLM's view of the file is slightly imperfect
+The agent is designed to overcome common pitfalls of LLM-based coding tools:
+
+### 1. "Super Fuzzy" Patching System
+LLMs often generate correct logic but fail at strict formatting (e.g., wrong line numbers, missing context lines, inconsistent whitespace). This agent implements a custom **fuzzy patching engine** that:
+- **Ignores Line Numbers**: Searches for code context semantically rather than by index.
+- **Ignores Whitespace/Blanks**: Tolerates differences in indentation and vertical spacing (e.g., one blank line vs two).
+- **Fallback Logic**: Tries strict `git apply` first for safety, then falls back to fuzzy content matching to partial-apply valid fixes.
+
+### 2. Anti-Stalling & Decision Determinism
+- **Prompt Engineering**: The agent's "thought process" is strictly constrained to prevent inaction. If a patch is generated, the system forces an immediate application attempt.
+- **Workflow Enforcement**: Rules like *"ALWAYS read the file before patching"* are baked into the system prompt to prevent hallucinated code edits.
+
+### 3. CI Integration
+- **Exit Code Capture**: Uses `PIPESTATUS` to correctly capture test failures even when piped through other commands, ensuring the self-healing process triggers reliably.
 
 ---
 
@@ -160,4 +169,4 @@ Provided as-is for educational and experimental use. No warranty.
 
 ---
 
-**CI should fix itself.** 🤖
+**CI should fix itself.** 
