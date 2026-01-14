@@ -1,10 +1,10 @@
-# Autonomous CI Repair 🤖🛠️
+# Autonomous CI Repair 
 
 An autonomous agent that detects failing CI builds, diagnoses test failures from logs, generates code fixes using multi-model LLM reasoning, verifies them, and commits fixes back to the repository automatically.
 
 ---
 
-## 🚀 How to Use This in Your Repository
+##  How to Use This in Your Repository
 
 ### Step 1: Add a GitHub Actions Workflow
 
@@ -54,7 +54,7 @@ When CI tests fail, the agent automatically:
 
 ---
 
-## 🧠 What This Agent Does
+##  What This Agent Does
 
 When a CI build fails:
 
@@ -69,7 +69,7 @@ If the fix fails, the agent exits with a clear failure reason.
 
 ---
 
-## 🏗️ Architecture Overview
+##  Architecture Overview
 
 ### Agent Loop (`agent/loop.py`)
 - Explicit reasoning to action loop
@@ -92,7 +92,7 @@ If the fix fails, the agent exits with a clear failure reason.
 
 ---
 
-## 🛡️ Safety Features
+##  Safety Features
 
 - ✅ Maximum attempt limit (default: 3)
 - ✅ Tests must pass before committing
@@ -102,7 +102,7 @@ If the fix fails, the agent exits with a clear failure reason.
 
 ---
 
-## ⚠️ Limitations
+## Limitations
 
 **Currently supports:**
 - Python projects using pytest only
@@ -115,7 +115,7 @@ If the fix fails, the agent exits with a clear failure reason.
 
 ---
 
-## 💻 Run Locally
+## Run Locally
 
 ```bash
 export GEMINI_API_KEY=your_key
@@ -128,7 +128,7 @@ Run inside a repository with failing tests.
 
 ---
 
-## 🤔 Why This Exists
+##  Why This Exists
 
 CI failures are repetitive, disruptive, and often trivial.
 
@@ -136,7 +136,7 @@ This agent treats CI failures as **automatable engineering tasks**, not human em
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 - [ ] Multi-language support
 - [ ] Smarter multi-file refactors
@@ -146,7 +146,7 @@ This agent treats CI failures as **automatable engineering tasks**, not human em
 
 ---
 
-## 📜 License
+##  License
 
 Provided as-is for educational and experimental use. No warranty.
 
