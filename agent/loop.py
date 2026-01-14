@@ -251,21 +251,26 @@ Current code:
 Error from test output:
 {error}
 
-Generate a unified diff patch to fix the test assertions. The patch must:
-1. Use the EXACT function names from the code above
-2. Fix the assertion values to match what the function actually returns
-3. Be in standard unified diff format (no markdown, no code blocks)
-4. The context lines (lines starting with space) MUST match the provided code EXACTLY. Do not hallucinate values in context lines.
+CRITICAL: Generate a SINGLE unified diff patch that fixes ALL failing test assertions shown in the error above.
+The patch must:
+1. Fix EVERY failing assertion (not just one of them)
+2. Use the EXACT function names and line structure from the code above
+3. Change ONLY the incorrect expected values to match what the function actually returns
+4. Be in standard unified diff format (no markdown, no code blocks)
+5. The context lines (lines starting with space) MUST match the provided code EXACTLY
 
-Example format:
+Example format (fixing multiple assertions):
 --- {file_path}
 +++ {file_path}
-@@ -3,5 +3,5 @@
+@@ -3,7 +3,7 @@
  def test_add():
--    assert add(1, 2) == 192
-+    assert add(1, 2) == 3
+     assert add(1, 2) == 3
+-    assert add(424, 2) == 428
++    assert add(424, 2) == 426
+-    assert add(987, 0) == 988
++    assert add(987, 0) == 987
 
-Output ONLY the unified diff patch, nothing else."""
+Output ONLY the unified diff patch that fixes ALL errors, nothing else."""
 
         patch = self.coder.complete(prompt)
 
