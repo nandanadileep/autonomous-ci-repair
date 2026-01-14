@@ -193,6 +193,12 @@ ACTION: {{"type": "...", ...}}
         if action_type == "generate_patch":
             return self._generate_patch(action, state)
 
+    
+        print("=" * 80)
+        print("CRITICAL DEBUG: Unknown action type received")
+        print(f"Action dict: {action}")
+        print(f"Action type: {action_type}")
+        print("=" * 80)
         return {"success": False, "error": "Unknown action type"}
 
     def _run_tool(self, action: Dict[str, Any], state: AgentState) -> Dict[str, Any]:
