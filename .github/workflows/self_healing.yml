@@ -60,11 +60,14 @@ jobs:
       - name: Run test suite
         id: run_tests
         run: |
+          set +e  # Don't exit on error
           ${{ inputs.test-command }} 2>&1 | tee build.log
-        continue-on-error: true
-
+          TEST_EXIT_CODE=$?
+          echo "exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          exit 0  # Always succeed so workflow continues
+        
       - name: Upload build log
-        if: steps.run_tests.outcome == 'failure'
+        if: steps.run_tests.outputs.exit_code != '0'
         uses: actions/upload-artifact@v4
         with:
           name: build-log-${{ github.sha }}
@@ -72,13 +75,13 @@ jobs:
           retention-days: 7
 
       - name: Configure Git
-        if: steps.run_tests.outcome == 'failure'
+        if: steps.run_tests.outputs.exit_code != '0'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run self-healing agent
-        if: steps.run_tests.outcome == 'failure'
+        if: steps.run_tests.outputs.exit_code != '0'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -88,7 +91,7 @@ jobs:
           python .ci-agent/agent.py
 
       - name: Push auto-fix commit
-        if: steps.run_tests.outcome == 'failure'
+        if: steps.run_tests.outputs.exit_code != '0'
         run: |
           if git log --oneline -1 | grep -q "\[ci-auto-fix\]"; then
             echo "✅ Auto-fix commit detected, pushing..."
@@ -99,7 +102,7 @@ jobs:
           fi
 
       - name: Verify fix
-        if: steps.run_tests.outcome == 'failure'
+        if: steps.run_tests.outputs.exit_code != '0'
         run: |
           echo "🧪 Running tests again to verify the fix..."
           ${{ inputs.test-command }}
@@ -107,7 +110,7 @@ jobs:
       - name: Report status
         if: always()
         run: |
-          if [ "${{ steps.run_tests.outcome }}" == "success" ]; then
+          if [ "${{ steps.run_tests.outputs.exit_code }}" == "0" ]; then
             echo "✅ Tests passed on first run"
           else
             echo "🔧 Tests failed, self-healing attempted"
