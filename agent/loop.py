@@ -157,6 +157,11 @@ ACTION: {{"type": "...", ...}}
 
         if not json_str:
              # If no JSON string was found by either strategy, return an unknown action
+             print("=" * 80)
+             print("CRITICAL DEBUG: LLM OUTPUT PARSING FAILED")
+             print("Raw LLM Output:")
+             print(llm_output)
+             print("=" * 80)
              return {"type": "unknown", "error": "No JSON action found in output"}
 
         # Attempt to parse the found JSON string
