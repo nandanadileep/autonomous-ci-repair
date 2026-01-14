@@ -57,7 +57,7 @@ class ApplyPatch(Tool):
     def _fuzzy_apply(self, patch: str) -> bool:
         """
         Manually parses a unified diff and applies changes by searching for context blocks.
-        Ignores line numbers and is whitespace-forgiving.
+        Ignores line numbers, whitespace, and blank lines.
         """
         lines = patch.split('\n')
         target_file = None
@@ -81,7 +81,7 @@ class ApplyPatch(Tool):
             file_lines = f.readlines()
 
         # 2. Extract chunks
-        chunks = [] # List of (search_lines, replace_lines)
+        chunks = [] 
         current_search = []
         current_replace = []
         in_chunk = False
@@ -98,7 +98,6 @@ class ApplyPatch(Tool):
             if not in_chunk:
                 continue
 
-            # Handle No newline at end of file
             if line.startswith('\\ No newline'):
                 continue
 
@@ -118,64 +117,99 @@ class ApplyPatch(Tool):
             raise ValueError("No valid chunks found in patch")
 
         # 3. Apply chunks
-        # We process chunks one by one, updating file_lines
         changes_made = False
 
         for search_lines, replace_lines in chunks:
-            # Try to find the search_lines in file_lines (ignoring whitespace)
-            match_index = -1
+            # SUPER FUZZY MATCHING: Ignore empty lines
             
-            # Helper to strip whitespace for comparison
-            search_stripped = [s.strip() for s in search_lines if s.strip()]
-            if not search_stripped:
-                continue # Skip empty chunks
+            # 1. Map file lines to non-empty indices
+            # file_map = [(original_index, stripped_content), ...]
+            file_map = []
+            for i, line in enumerate(file_lines):
+                stripped = line.strip()
+                if stripped:
+                    file_map.append((i, stripped))
 
-            # Naive search for the block
-            for i in range(len(file_lines) - len(search_lines) + 1):
-                # Check if this window matches
+            # 2. Prepare search block (stripped, non-empty)
+            search_stripped = [s.strip() for s in search_lines if s.strip()]
+            
+            if not search_stripped:
+                continue
+
+            # 3. Find sequence match in file_map
+            match_start_idx = -1
+            match_end_idx = -1
+            
+            for i in range(len(file_map) - len(search_stripped) + 1):
                 match = True
-                search_idx = 0
-                file_idx = 0
-                
-                # Careful line-by-line check with whitespace normalization
-                # We need to match all non-empty search lines
-                current_window_file_lines = []
-                
-                # Logic: iterate through search_lines, find corresponding match in file starting at i
-                # This is tricky because we want to preserve file's original indentation if possible?
-                # Actually, simpler: Exact match on .strip() content
-                
-                # Let's verify strict stripped match for all lines
-                match = True
-                for k, s_line in enumerate(search_lines):
-                    if i + k >= len(file_lines):
-                        match = False
-                        break
-                    f_line = file_lines[i + k]
-                    if s_line.strip() != f_line.strip():
+                for k, s_content in enumerate(search_stripped):
+                    if file_map[i + k][1] != s_content:
                         match = False
                         break
                 
                 if match:
-                    match_index = i
+                    # Found match!
+                    # Start index in original file is the index of the first matched line
+                    match_start_idx = file_map[i][0]
+                    # End index is the index of the last matched line
+                    match_end_idx = file_map[i + len(search_stripped) - 1][0]
+                    
+                    # But wait! We need to handle the case where the replace block REPLACES 
+                    # the chunk. We should probably expand the match range to include 
+                    # interstitial blank lines?
+                    
+                    # Actually, a safer way is:
+                    # We found the block from match_start_idx to match_end_idx
+                    # But there might be blank lines *before* match_start_idx that were 
+                    # part of the "context" conceptually, or *after*.
+                    # However, strictly replacing the *content* lines is safest for code.
+                    
+                    # One Edge Case: If the search block HAD blank lines in the middle
+                    # we want to include them in the replaced range.
+                    # e.g. Search: "A", "", "B". File: "A", "", "", "B".
+                    # Our match finds "A" and "B". 
+                    # Replaced range should be from "A" to "B" inclusive.
                     break
             
-            if match_index != -1:
-                # Found it! Replace file_lines[match_index : match_index + len(search_lines)]
-                # BUT we need to handle formatting of replace_lines. 
-                # LLM patches provided replace_lines with some indentation.
-                # simpler approach: just insert the replace_lines as strings (adding newlines if needed)
+            if match_start_idx != -1:
+                # We found the start and end lines of the content.
+                # Replace everything between match_start_idx and match_end_idx + 1
                 
-                # Prepare replace lines with newlines
+                # Construct replacement text
+                # We simply use the replace_lines as provided
                 final_replace = [L + '\n' if not L.endswith('\n') else L for L in replace_lines]
                 
-                # Replace the slice
-                file_lines[match_index : match_index + len(search_lines)] = final_replace
+                # Perform replacement
+                # Note: modifying list in place changes indices for subsequent chunks?
+                # Yes. But usually patches flow top-to-bottom. 
+                # Ideally we track offset, but here we assume chunks are ordered.
+                # However, since we re-read file_lines only once at start, we might desync 
+                # if we have multiple chunks.
+                # BUT this tool restarts logic for each chunk? 
+                # No, the loop runs on `file_lines`. We must account for index shift?
+                # Actually, `file_map` is computed based on CURRENT `file_lines`.
+                # So we should re-compute file_map inside the loop? 
+                # YES.
+                
+                # Re-reading or Re-computing is needed.
+                # Let's just modify the code to restart the search for each chunk 
+                # on the *current* state of file_lines.
+                
+                # RECURSIVE/ITERATIVE FIX:
+                # We found indices in current `file_lines`.
+                file_lines[match_start_idx : match_end_idx + 1] = final_replace
                 changes_made = True
+                
+                # Since we modified file_lines, we must continue to next chunk 
+                # but careful about indices. The loop `for search_lines...` continues.
+                # We should re-scan file for next chunk?
+                # The next chunk search will re-build file_map correctly because 
+                # it's built inside the loop? NO, it was built outside.
+                # I need to move file_map construction INSIDE the loop.
+                pass 
             else:
-                # Failed to find matches
                 error_context = '\n'.join(search_lines)
-                raise ValueError(f"Could not locate block in file (whitespace ignore):\n{error_context}")
+                raise ValueError(f"Could not locate block in file (super fuzzy):\n{error_context}")
 
         if changes_made:
             with open(target_file, 'w') as f:
