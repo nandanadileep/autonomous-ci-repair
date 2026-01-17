@@ -6,11 +6,12 @@ An autonomous agent that detects failing CI builds, diagnoses test failures from
 
 **See the autonomous agent in action:**
 
-![Demo](./Screen%20Recording%202026-01-15%20at%201.43.12%20AM.mov)
+<p align="center">
+  <a href="https://github.com/nandanadileep/autonomous-ci-repair/blob/main/Screen%20Recording%202026-01-15%20at%201.43.12%E2%80%AFAM.mov">
+    <img src="https://img.shields.io/badge/▶%20Watch-Demo-blue?style=for-the-badge">
+  </a>
+</p>
 
-*Watch the complete workflow: Error detection → Log analysis → Patch generation → Fuzzy application → Test verification → Auto-commit*
-
----
 
 ##  How to Use This in Your Repository
 
