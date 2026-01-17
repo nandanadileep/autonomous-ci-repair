@@ -2,6 +2,14 @@
 
 An autonomous agent that detects failing CI builds, diagnoses test failures from logs, generates code fixes using multi-model LLM reasoning, verifies them, and commits fixes back to the repository automatically.
 
+## 🎬 Demo
+
+**See the autonomous agent in action:**
+
+![Demo](./Screen%20Recording%202026-01-15%20at%201.43.12%20AM.mov)
+
+*Watch the complete workflow: Error detection → Log analysis → Patch generation → Fuzzy application → Test verification → Auto-commit*
+
 ---
 
 ##  How to Use This in Your Repository
