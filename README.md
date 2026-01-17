@@ -2,9 +2,6 @@
 
 An autonomous agent that detects failing CI builds, diagnoses test failures from logs, generates code fixes using multi-model LLM reasoning, verifies them, and commits fixes back to the repository automatically.
 
-## 🎬 Demo
-
-**See the autonomous agent in action:**
 
 <p align="center">
   <a href="https://github.com/nandanadileep/autonomous-ci-repair/blob/main/Screen%20Recording%202026-01-15%20at%201.43.12%E2%80%AFAM.mov">
