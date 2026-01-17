@@ -128,11 +128,11 @@ This ensures the agent never gets stuck in a "thinking loop" when the path forwa
 
 ---
 
-## 🛠️ Engineering Challenges & Solutions
+## Engineering Challenges & Solutions
 
 Building a reliable autonomous agent revealed that **LLMs fail in predictable ways**. Here are the 8 distinct failure modes discovered and how they were systematically resolved:
 
-### Challenge 1: Additive Patches Creating Duplicates ❌
+### Challenge 1: Additive Patches Creating Duplicates
 **Problem:** LLM generated patches that *added* new lines instead of *replacing* wrong ones.
 
 **Example of failure:**
@@ -150,7 +150,7 @@ def test_add():  # Corrupted file
     assert add(987, 0) == 987
 ```
 
-**✅ Solution: Patch Validator & Auto-Transformer**
+**Solution: Patch Validator & Auto-Transformer**
 ```python
 def _fix_additive_patch(patch, original_code):
     # Detect patches with only + lines (no - lines)
@@ -163,7 +163,7 @@ def _fix_additive_patch(patch, original_code):
 
 ---
 
-### Challenge 2: Infinite Read Loops (Analysis Paralysis) ♾️
+### Challenge 2: Infinite Read Loops (Analysis Paralysis)
 **Problem:** Agent kept reading the same files 5-8 times without ever generating a patch.
 
 **Example behavior:**
@@ -172,10 +172,10 @@ def _fix_additive_patch(patch, original_code):
 2. Read test_utils.py
 3. Read test_utils.py (again)
 4. Read test_utils.py (again)
-5. Max attempts reached ❌
+5. Max attempts reached (failed)
 ```
 
-**✅ Solution: GUARDRAIL 4 - Anti-Loop Forcing**
+**Solution: GUARDRAIL 4 - Anti-Loop Forcing**
 ```python
 # After 2 consecutive file reads, force action
 if consecutive_reads >= 2:
@@ -187,17 +187,17 @@ if consecutive_reads >= 2:
 
 ---
 
-### Challenge 3: Partial Success Abandonment 🔄
+### Challenge 3: Partial Success Abandonment
 **Problem:** LLM fixed only 1 of N failing tests, then stopped trying.
 
 **Example:**
 ```
 Initial: 3 tests failing
 After patch: 1 test failing (2 fixed!)
-Agent: "Max attempts reached" ❌ (gave up)
+Agent: "Max attempts reached" (gave up)
 ```
 
-**✅ Solution: GUARDRAIL 3 - Partial Success Retry**
+**Solution: GUARDRAIL 3 - Partial Success Retry**
 ```python
 # Detect if patch fixed SOME but not ALL errors
 if tests_failed and error_count_decreased:
@@ -208,7 +208,7 @@ if tests_failed and error_count_decreased:
 
 ---
 
-### Challenge 4: Context Hallucination Breaking Patches 🧠
+### Challenge 4: Context Hallucination Breaking Patches
 **Problem:** LLM "misremembers" code details, generating patches with wrong context.
 
 **Example:**
@@ -222,7 +222,7 @@ if tests_failed and error_count_decreased:
 # Standard patch fails: "Context doesn't match"
 ```
 
-**✅ Solution: Hyper-Fuzzy Patching (Already documented above)**
+**Solution: Hyper-Fuzzy Patching (Already documented above)**
 - Uses `difflib.SequenceMatcher` with 80% similarity threshold
 - Falls back to fuzzy matching when exact match fails
 
@@ -230,19 +230,19 @@ if tests_failed and error_count_decreased:
 
 ---
 
-### Challenge 5: Wrong Target Selection 🎯
+### Challenge 5: Wrong Target Selection
 **Problem:** LLM modified passing tests instead of failing ones.
 
 **Example:**
 ```python
 # Test that's FAILING:
-assert add(987, 0) == 1000  # ❌ Wrong
+assert add(987, 0) == 1000  # Wrong
 
 # LLM decides to "fix" a PASSING test instead:
 assert add(-1, -1) == -2    # Already correct!
 ```
 
-**✅ Solution: Combined GUARDRAIL 4 + Explicit Error Context**
+**Solution: Combined GUARDRAIL 4 + Explicit Error Context**
 - Provides exact failing test location from build.log
 - Forces patch generation with specific error context
 
@@ -250,7 +250,7 @@ assert add(-1, -1) == -2    # Already correct!
 
 ---
 
-### Challenge 6: No-Op Patches (Useless Changes) 🔄
+### Challenge 6: No-Op Patches (Useless Changes)
 **Problem:** LLM changed code to identical version (no actual fix).
 
 **Example:**
@@ -259,15 +259,15 @@ assert add(-1, -1) == -2    # Already correct!
 +    assert add(-1, -1) == -2  # Same line!
 ```
 
-**✅ Solution: Enhanced prompting + GUARDRAIL 2 (Auto-Commit)**
-- Ultra-explicit prompts with ❌ WRONG vs ✅ CORRECT examples
+**Solution: Enhanced prompting + GUARDRAIL 2 (Auto-Commit)**
+- Ultra-explicit prompts with WRONG vs CORRECT examples
 - Auto-commit prevents agent from trying to "improve" working code
 
 **Impact:** Reduced no-ops by ~85%
 
 ---
 
-### Challenge 7: JSON Escaping Failures in String Assertions 📝
+### Challenge 7: JSON Escaping Failures in String Assertions
 **Problem:** LLM generated valid patches but created invalid JSON.
 
 **Example:**
@@ -276,7 +276,7 @@ assert add(-1, -1) == -2    # Already correct!
                          ↑ Unescaped quotes break JSON!
 ```
 
-**✅ Solution: Multi-Strategy JSON Parsing**
+**Solution: Multi-Strategy JSON Parsing**
 ```python
 def parse_llm_output(text):
     # Strategy 1: Look for "ACTION:" marker
@@ -293,10 +293,10 @@ def parse_llm_output(text):
 
 ---
 
-### Challenge 8: API Rate Limiting 🚫
+### Challenge 8: API Rate Limiting
 **Problem:** Hit Gemini API quota (10 requests/minute) with free-tier LLM.
 
-**✅ Solution: Reduced `max_attempts` from 15 → 8**
+**Solution: Reduced `max_attempts` from 15 → 8**
 - Balanced between enough retries and staying under quota
 - Combined with guardrails, 8 attempts proved sufficient
 
@@ -304,7 +304,7 @@ def parse_llm_output(text):
 
 ---
 
-## 🎯 The Complete Guardrail System
+## The Complete Guardrail System
 
 All four guardrails work together to create a deterministic workflow:
 
@@ -319,7 +319,7 @@ All four guardrails work together to create a deterministic workflow:
 
 ---
 
-## 📊 Impact Summary
+## Impact Summary
 
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
